@@ -34,7 +34,8 @@ enum{
 	INC_STATE,
 	ADD_TILE,
 	TYPE_TILE,
-	DEL_TILE
+	DEL_TILE,
+	//MESSAGE
 };
 
 typedef struct files{
@@ -134,6 +135,7 @@ void init_gui(){
 
 	//Mix_HookMusicFinished(NULL);
 	Mix_HaltMusic();
+	active_font = ed_font;
 	view.x = 0.0;
 	view.y = -1.29;
 	view.z = -2.94;
@@ -310,6 +312,7 @@ void add_state(int i){
 	snprintf(ldata.states[ldata.index].model, 16, "%s", file_names.model);
 	ldata.states[ldata.index].message[0] = '\0';
 	set_active(i);
+	refresh_state();
 	printf("added state %d\n", ldata.no_of_state);
 	
 }
@@ -347,7 +350,7 @@ void add_object(int u){
 		ldata.states[ldata.index].objects[i].health = 1;
 		ldata.states[ldata.index].objects[i].pos.x = 0;
 		ldata.states[ldata.index].objects[i].pos.y = model_y;
-		ldata.states[ldata.index].objects[i].pos.z = -0.5;
+		ldata.states[ldata.index].objects[i].pos.z = -0.5;	// TODO ALTER BY TYPE OF OBJECT TO BE SENSIBLE
 		set_active(u);
 		create_dolphin(0);
 	}
@@ -400,8 +403,7 @@ void context_menu(){
 		case ADD_EVENT:
 			context_event();
 			sprintf(str, "EV:%d", ldata.ev_idx + 1);
-			draw_text(str, CENTER, 84, 510);
-			
+			draw_text(str, CENTER, 84, 510);	
 			break;
 		case ADD_ENEMY:
 			sprintf(str, "EN:%d", enemy_idx);
@@ -435,13 +437,11 @@ void context_menu(){
 	sprintf(str, "S:%d", ldata.index);
 	draw_text(str, CENTER, 84, 580);
 
-	draw_log();
-		
+	draw_log();		
 }
 
 void context_state(){
 
-	char message[64];
 	char str[32];
 	draw_text("MESSAGE", LEFT, 20, 250);
 
@@ -451,7 +451,11 @@ void context_state(){
 	sprintf(str, "EN Y: %.2f", model_y);	// this needs fixing!!!!
 	draw_text(str, CENTER, SCREEN_WIDTH/2, 285);
 
-	draw_text("EN ALPHA", CENTER, SCREEN_WIDTH/2, 320);
+	draw_text("EN ALPHA", CENTER, SCREEN_WIDTH/2, 320);	// TODO WHATS THE PLAN HERE???
+	if (ldata.states[ldata.index].message[0] != '\0'){
+		snprintf(str, 10, ldata.states[ldata.index].message);
+		draw_text(str, LEFT, 20, 285);
+	}
 }
 
 void context_bonus(){
@@ -545,7 +549,7 @@ void context_enemy(){
 		create_dolphin(0);
 		mousex = 0;
 	}
-
+	// convert o to to motions[]
 	o = ldata.states[ldata.index].objects[object_idx].type - MODELS - 1;
 	draw_text(motions[o], CENTER, SCREEN_WIDTH/2, 250);
 
@@ -742,10 +746,10 @@ void set_eventidx(int i){
 				play_music();
 			}
 		}
-	}
-	
+	}	
 }
-
+// Gets the next object of type enemy in either direction
+// If found sets object index and enemy index
 void set_enemyidx(int i){
 
 	// GET PREVIOUS ENEMY
@@ -755,7 +759,7 @@ void set_enemyidx(int i){
 			if (ldata.states[ldata.index].objects[k].type > MODELS){
 				object_idx = k;
 				--enemy_idx;
-				printf("seten object idx = %d\n", object_idx);
+				printf("set_enemyidx() object idx = %d\n", object_idx);
 				return;
 			}
 		}
@@ -768,7 +772,7 @@ void set_enemyidx(int i){
 			if (ldata.states[ldata.index].objects[k].type > MODELS){
 				object_idx = k;
 				++enemy_idx;
-				printf("seten object idx = %d\n", object_idx);
+				printf("set_enemyidx() object idx = %d\n", object_idx);
 				return;
 			}
 		}
@@ -952,9 +956,9 @@ void delete_object(int i){
 	}
 
 	
-	printf("D-POST--no_of_object = \t%d\t obj index = \t%d\n", ldata.states[ldata.index].no_of_object, object_idx);
-	printf("D-POST--bonus idx = \t%d\t enemy idx = \t%d\n", bonus_idx, enemy_idx);
-	printf("D-POST--bonus count = \t%d\t enemy count = \t%d\n", bonus_count, enemy_count);
+	printf("Del-POST--no_of_object = \t%d\t obj index = \t%d\n", ldata.states[ldata.index].no_of_object, object_idx);
+	printf("Del-POST--bonus idx = \t%d\t enemy idx = \t%d\n", bonus_idx, enemy_idx);
+	printf("Del-POST--bonus count = \t%d\t enemy count = \t%d\n", bonus_count, enemy_count);
 	return;
 }
 
@@ -1005,7 +1009,7 @@ void delete_state(int i){
 void refresh_state(){
 	
 	int idx = ldata.index;
-
+	// load states model
 	if (ldata.states[idx].model[0] != '\0'){
 		read_model(ldata.states[idx].model);
 		snprintf(file_names.model, 16, "%s", ldata.states[ldata.index].model);
@@ -1016,12 +1020,11 @@ void refresh_state(){
 	if (ldata.states[idx].no_of_object > 0){
 		model_y = ldata.states[idx].objects[0].pos.y;
 	}
-
+	// re/create states entities
 	en.no_active = 0;
 	en3d.no_active = 0;
 
 	for (int i = 0; i < ldata.states[idx].no_of_object; ++i){
-		// TODO SWITCH OBJECT TYPE
 		if (ldata.states[idx].objects[i].type < MODELS){
 			create_entity(ldata.states[idx].objects[i].pos, ldata.states[idx].objects[i].type);
 		}
@@ -1032,10 +1035,13 @@ void refresh_state(){
 
 	// SET ENEMY COUNT ANT BONUS COUNT ETC
 	int done = 0;
-	int last = 0;
+	int last = 0;	// Previous object indexed
 	object_idx = 0;
 	enemy_count = 0;
-
+	bonus_count = 0;
+	enemy_idx = 0;
+	bonus_idx = 0;
+	// get the type of the first object in this state
 	if (ldata.states[ldata.index].no_of_object > 0){
 		if (ldata.states[ldata.index].objects[0].type > MODELS)
 			++enemy_count;
@@ -1045,10 +1051,11 @@ void refresh_state(){
 
 	while(!done){
 
-		set_enemyidx(INC_EVIDX);
+		set_enemyidx(INC_EVIDX);	// en/obj_idx = next enemy or 0
 
-		if (object_idx == last){
+		if (object_idx == last){	// if last enemy object in array quit
 			done = 1;
+			printf("DEBUG enemy count  = %d\n", enemy_count);
 		}
 		else{
 			enemy_count += 1;
@@ -1060,7 +1067,6 @@ void refresh_state(){
 	done = 0;
 	last = 0;
 	object_idx = 0;
-	bonus_count = 0;
 	
 	while(!done){
 
@@ -1077,6 +1083,7 @@ void refresh_state(){
 	}
 
 	object_idx = 0;
+
 }
 
 void set_numkilled(int i){
@@ -1168,7 +1175,6 @@ void set_bonus_type(int i){
 	ob->type = (ob->type) % 4 + 1; 	
 	kill_entity(bonus_idx - 1);
 	create_entity(ldata.states[idx].objects[object_idx].pos, ldata.states[idx].objects[object_idx].type);
-
 }
 
 void set_model_size(int i){
@@ -1178,7 +1184,6 @@ void set_model_size(int i){
 	model_size = ldata.states[idx].model_size;
 	if(ldata.states[idx].model_size > 0.6)
 		ldata.states[idx].model_size = 0.1;
-
 }
 
 void set_model_height(int i){
@@ -1196,7 +1201,7 @@ void set_model_height(int i){
 
 void set_state_message(int i){
 
-
+	get_filepath(ldata.states[ldata.index].message, 20, 380);
 }
 
 void set_blend_mode(int i){
@@ -1213,7 +1218,6 @@ void create_dolphin(int X){
 	//ldata.states[idx].objects[i].state = 0;
 	printf("CD-Dolphin in state %d\t object %d\n", idx, object_idx);
 	printf("CD-Num of Dolphins = %d\n", en3d.no_active);
-
 }
 
 void create_bonus(){
@@ -1232,21 +1236,17 @@ void close_gui(){
 		if (widgets[i] != NULL)
 			free(widgets[i]);
 	}
-	no_of_widget = 0;
-	
+	no_of_widget = 0;	
 }
 
 void level_editor(){
 
-	//draw_text("LEVEL EDITOR", 0, pos);
-	//sprintf(winner, "PLAYER %d WINS", n);
 	set_ortho();
 	draw_widgets();
 	context_menu();
 	unset_ortho();
 	display_stack();
 	display_model();
-	//widget t = create_widget("testing --->||||||||", 0, CENTER, pos);
 }
 
 void set_filepath(int i){
@@ -1317,7 +1317,7 @@ void get_filepath(char *path, int x, int y){
 
 		glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 		set_ortho();
-		//draw_widgets();
+
 		if (path[0] != '\0'){
 			draw_text(path ,CENTER, SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
 		}
@@ -1431,7 +1431,6 @@ void toggle_colours(int i){
 		widgets[GREEN]->state = ldata.hcolour.y * 255;
 		widgets[BLUE]->state = ldata.hcolour.z * 255;
 	}
-
 }
 
 void set_colours(int i){
@@ -1534,6 +1533,7 @@ void run_game(){
 
 	close_gui();
 	editor_mode = 0;
+	active_font = hud_font;
 	init_player();
 	load_gamestate();
 	//free_resources();
@@ -1581,6 +1581,8 @@ void set_active(int x){
 			widgets[CONTEXT6]->handle = set_blend_mode;
 			widgets[CONTEXT7]->state = 1;
 			widgets[CONTEXT7]->handle = set_state_message;
+			widgets[CONTEXT8]->state = 1;
+			widgets[CONTEXT8]->handle = no_op;
 			widgets[DELETE]->handle = delete_state;
 			widgets[DELETE]->state = 1;
 			break;
@@ -1629,7 +1631,6 @@ void set_event_type(int i){
 
 	int event_flag = i - 15;
 	ldata.events[ldata.ev_idx].type = event_flag;
-
 }
 
 void draw_log(){
@@ -1638,7 +1639,6 @@ void draw_log(){
 	sprintf(str, "STATE %d:  ENEMIES:%d  BONUS:%d  EVENTS:%d", ldata.index + 1, enemy_count, bonus_count, ldata.no_of_event);
 
 	draw_text(str, CENTER, SCREEN_WIDTH/2, SCREEN_HEIGHT - 35);
-
 }
 
 void display_error(int error){
@@ -1709,5 +1709,4 @@ int validate_level(){
 	}
 	//	TODO check for loop file
 	return 0;
-
 }

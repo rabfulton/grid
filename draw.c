@@ -26,11 +26,11 @@ GLsizei stride;				// buffers for vbo
 GLfloat hud_r = 0.9;
 GLfloat hud_g = 0.3;
 GLfloat hud_b = 0.5;
-
-TTF_Font	*score_font = NULL;		// TODO get set sonts and free in close sdl
+TTF_Font	*active_font = NULL;		// TODO get set sonts and free in close sdl
 TTF_Font	*hud_font= NULL;
 TTF_Font	*menu_font = NULL;
 TTF_Font	*ed_font = NULL;	
+
 
 typedef struct tex_index{GLfloat coords[8];}tex_index;
 
@@ -141,9 +141,14 @@ glewInit();
 	//initGL();
 	set_viewport();
 	ed_font = TTF_OpenFont("./Ultra.ttf", (int)(SCREEN_HEIGHT * 0.02));
-	hud_font = TTF_OpenFont("./Syncopate-Bold", (int)(SCREEN_HEIGHT * 0.02));
+	hud_font = TTF_OpenFont("./njnaruto.ttf", (int)(SCREEN_HEIGHT * 0.06));
+	if(!hud_font) {
+    	printf("TTF_OpenFont: %s\n", TTF_GetError());
+    // handle error
+}
 	//printf("score_font = %p val = %d\n", score_font,  (int)(SCREEN_HEIGHT * 0.02));
-
+assert(ed_font != NULL);
+assert(hud_font != NULL);
 	return 0; 
 
 
@@ -793,16 +798,17 @@ void render_text(texture *t, char s[], int c, int size){
 	SDL_Surface* 	load_text = NULL;
 	// TODO ENUM FOR COLOUR AND SIZE?
 	// TODO IN FINAL GAME WE WILL NOT DO THIS
-	if  (size != 0){
-		TTF_CloseFont(ed_font);// TTF_CloseFont(title_font);TTF_CloseFont(menu_font);
-		score_font = NULL;
-		score_font = TTF_OpenFont("Ultra.ttf", size);
-	}
+	// if  (size != 0){
+	// 	TTF_CloseFont(ed_font);// TTF_CloseFont(title_font);TTF_CloseFont(menu_font);
+	// 	score_font = NULL;
+	// 	score_font = TTF_OpenFont("Ultra.ttf", size);
+	// }
 
 	if (c == 0)
-		load_text = TTF_RenderText_Blended(ed_font, s, col);
-	if (c == 1)
-		load_text = TTF_RenderText_Blended(ed_font, s, col2);
+		load_text = TTF_RenderText_Blended(active_font, s, col);
+	else if (c == 1)
+		load_text = TTF_RenderText_Blended(active_font, s, col2);
+	
 	int p2x;
 	int p2y;
 	p2x = power_two(load_text->w);

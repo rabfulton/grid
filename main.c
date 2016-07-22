@@ -70,6 +70,7 @@ int editor_mode = 0;
 int music_index = 0;
 int gridmod = 0;
 int lives = 3;
+int message = 0;
 
 int setup_tiles(){
 
@@ -158,8 +159,8 @@ int main(int argc, char* args[]){
 			glViewport(SCREEN_WIDTH, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 			
 			glLoadIdentity();
-			glTranslatef(view.x, view.y, view.z);	// TODO JUDDER
-			glRotatef(view.w, 1, 0, 0);				// z = rot clock/ccw
+			glTranslatef(view.x, view.y, view.z);	
+			glRotatef(view.w, 1, 0, 0);	
 			
 			draw_grid();
 			draw_entities();
@@ -196,7 +197,9 @@ int main(int argc, char* args[]){
 
 		while (accumclock > 64){					// if > 16ms (60fps)
 			update_node();							// TODO HOW DOES VSYNC AFFECT THIS?
-			update_spring();						// TODO ARE WE RENDER BOUND OR PHYSICS BOUND?
+			update_spring();
+			if (message)
+				--message;						// TODO ARE WE RENDER BOUND OR PHYSICS BOUND?
 			accumclock -= 64;			
 		}
 		assert (ldata.events[ldata.ev_idx].handle != 0);
@@ -229,6 +232,9 @@ int main(int argc, char* args[]){
 
 		set_ortho();
 			draw_score(93210);
+			if (message){
+				draw_text(ldata.states[ldata.index].message, CENTER, SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
+			}
 		unset_ortho();
 		
 		SDL_GL_SwapWindow(mywindow);
@@ -397,7 +403,7 @@ void init_game(){
 	t_score = load_texture("data/score.png", 8);	// THIS IS ACTUALLY 1BIT INDEXED?
 	t_parts = load_texture("data/part2.png", 32);
 	t_cards = load_texture("data/cards3.png", 32);
-
+	active_font = hud_font;
 	char str[16];
 	sprintf(str, "level%u.dat", level);
 	init_level(str);
@@ -585,6 +591,10 @@ void load_gamestate(){
 		else{
 			create_entity3d(&ldata.states[idx].objects[i]);
 		}
+	}
+
+	if (ldata.states[idx].message[0] != '\0'){
+		message = 100;
 	}
 }
 
@@ -1414,6 +1424,7 @@ void handle_events(){
 					editor_mode = 1;
 				}
 				else {
+
 					run_game();
 				}
 				break;

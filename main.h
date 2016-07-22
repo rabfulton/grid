@@ -65,7 +65,7 @@ enum{				// OBJECT/CARD TYPES
 	MODELS,			// DELIMITS 2D AND 3D OBJECTS
 	SINE_Z,
 	LINEAR,
-	SHIP
+	SHIP	// should be dodge???? see context_enemy()/set_motion()
 };
 
 
@@ -91,6 +91,10 @@ enum{					// EVENTS
 
 extern Sound sound[MAX_SOUNDS];
 extern Music music[8];
+extern TTF_Font	*active_font;		// TODO get set sonts and free in close sdl
+extern TTF_Font	*hud_font;
+extern TTF_Font	*menu_font;
+extern TTF_Font	*ed_font;	
 
 typedef struct texture {
 				int w;
@@ -248,7 +252,6 @@ extern player p1;
 extern entity_array en;
 extern entity3d_array en3d;
 extern int level;
-extern model_data *model;
 extern float model_size;
 extern GLuint t_parts;
 extern GLuint t_cards;
