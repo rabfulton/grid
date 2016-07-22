@@ -144,7 +144,7 @@ void init_gui(){
 	widgets[ADD_STATE] = create_widget("ADD STATE", BUTTON, LEFT, 20, 20);
 	widgets[ADD_STATE]->handle = add_state;
 	widgets[ADD_EVENT] = create_widget("ADD EVENT", BUTTON, LEFT, 20, 60);
-	widgets[ADD_EVENT]->handle = add_event;
+	widgets[ADD_EVENT]->handle = set_active;// was add_event
 	widgets[SAVE_LEVEL] = create_widget("SAVE LEVEL", BUTTON, RIGHT, SCREEN_WIDTH - 20, 20);
 	widgets[SAVE_LEVEL]->handle = save_level;
 	widgets[RUN_STATE] = create_widget("RUN STATE", BUTTON, RIGHT, SCREEN_WIDTH - 20, 60);
@@ -434,7 +434,7 @@ void context_menu(){
 	else
 		draw_text(file_names.model, LEFT, 20, 450);
 
-	sprintf(str, "S:%d", ldata.index);
+	sprintf(str, "S:%d", ldata.index + 1);
 	draw_text(str, CENTER, 84, 580);
 
 	draw_log();		
@@ -745,6 +745,9 @@ void set_eventidx(int i){
 				Mix_VolumeMusic(ldata.events[ldata.ev_idx].val2);
 				play_music();
 			}
+		}
+		else if(ldata.ev_idx == ldata.no_of_event - 1){
+			add_event(ADD_EVENT);
 		}
 	}	
 }
@@ -1083,7 +1086,6 @@ void refresh_state(){
 	}
 
 	object_idx = 0;
-
 }
 
 void set_numkilled(int i){
@@ -1256,6 +1258,23 @@ void set_filepath(int i){
 		if (file_names.data[0] != '\0'){
 			widgets[DATA_FILE]->state = 1;
 			read_leveldata(file_names.data);
+			// TODO SHOUD BE IN REFRESH FUNCTION?
+			if (ldata.states[0].loops != '\0'){
+				strcpy(file_names.loops, ldata.states[0].loops);
+				widgets[LOOP_FILE]->state = 1;
+				snprintf(ldata.states[0].loops, 16, "%s", file_names.loops);
+				load_music();
+				play_music();
+			}
+			if (ldata.states[0].model != '\0'){
+				strcpy(file_names.model, ldata.states[0].model);
+				read_model(file_names.model);
+				snprintf(ldata.states[ldata.index].model, 16, "%s", file_names.model);
+			}
+			if (start_no_of_tile)
+				init_player();
+
+			refresh_state();
 		}
 		else
 			widgets[DATA_FILE]->state = 0;
@@ -1266,6 +1285,7 @@ void set_filepath(int i){
 			widgets[LOOP_FILE]->state = 1;
 			snprintf(ldata.states[0].loops, 16, "%s", file_names.loops);
 			load_music();
+			play_music();
 		}
 		else
 			widgets[LOOP_FILE]->state = 0;
@@ -1403,6 +1423,7 @@ void gui_select(){
 			if ((unsigned)(mousey - min) < (max-min)){
 				
 				widgets[i]->handle(i);
+				printf("%i\n",i );
 
 			}
 		}
@@ -1587,6 +1608,9 @@ void set_active(int x){
 			widgets[DELETE]->state = 1;
 			break;
 		case ADD_EVENT:
+			if(ldata.no_of_event == 0){
+				add_event(1);
+			}
 			widgets[15]->handle = set_event_type;
 			widgets[16]->handle = set_event_type;
 			widgets[17]->handle = set_event_type;

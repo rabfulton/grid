@@ -30,7 +30,7 @@
 #define MAX_PARTS 9
 #define ELS ((GRIDW - 1)/2) * ((GRIDL - 1)/2)	// no. of triangle fans fir grid
 #define MAX_3DENTITIES 32
-
+#define MODHEIGHT 0.04
 typedef struct Sound{
 	Mix_Chunk *effect;
 }Sound;

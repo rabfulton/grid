@@ -84,6 +84,7 @@ int setup_tiles(){
 		pos[i].y = p1.position.y + i * 0.002;
 		pos[i].z = -1;
 		spin[i] = 150;
+	//	mod_height();
 	}
 	glViewport(SCREEN_WIDTH, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 	
@@ -95,6 +96,8 @@ int setup_tiles(){
 	while (pos[p1.no_of_tiles - 1].z < p1.position.z){
 		
 		handle_events();	// todo handle system events
+				draw_grid();
+
 		if (quit == 1)
 			return 0;
 
@@ -119,7 +122,6 @@ int setup_tiles(){
 			}
 		}
 		
-		draw_grid();
 		//glClear(GL_DEPTH_BUFFER_BIT);
 		SDL_GL_SwapWindow(mywindow);
 		SDL_Delay(10);
@@ -212,7 +214,7 @@ int main(int argc, char* args[]){
 			en3d.data[i].update(i);					// TODO UPDATE_ENT3D FUNCTION??
 		
 		collisions();
-		//mod_height();
+		mod_height();
 
 		// TODO MAYBE FASTER TO PUT THIS LOOP IN UPDATE
 		for (int i = 0; i < 4; ++i){
@@ -594,7 +596,7 @@ void load_gamestate(){
 	}
 
 	if (ldata.states[idx].message[0] != '\0'){
-		message = 100;
+		message = 20;
 	}
 }
 
@@ -785,10 +787,11 @@ void e_grid_mod(){
 
 void mod_height(){
 
-	p1.position.y = nodes[2][(int)(GRIDC + GRID_SPACING_INV * p1.position.x)].pos.y + 0.0625;
-
+	p1.position.y = nodes[2][(int)(GRIDC + GRID_SPACING_INV * p1.position.x)].pos.y + MODHEIGHT;
+return;
 	for (int i = 0; i < en3d.no_active; ++i){
 		if (en3d.data[i].pos.z > -(GRIDL - 1) * GRID_SPACING)
+		//if (en3d.data[i].update)
 		en3d.data[i].pos.y += nodes[2][(int)(GRIDC + GRID_SPACING_INV * en3d.data[i].pos.x)].pos.y;
 	}
 }
@@ -1151,8 +1154,8 @@ int update_torpedo(torpedo *t){
 	}
 	float z = t->position.z/GRID_SPACING;
  	displace(t->position.x/GRID_SPACING, -z, -0.01);
- 	displace(t->position.x/GRID_SPACING, -z + GRID_SPACING*2, -0.005);
- 	displace(t->position.x/GRID_SPACING, -z - GRID_SPACING*2, -0.005);
+ 	//displace(t->position.x/GRID_SPACING, -z + GRID_SPACING*2, -0.001);
+ 	//displace(t->position.x/GRID_SPACING, -z - GRID_SPACING*2, -0.001);
 
 	return 0;
 }

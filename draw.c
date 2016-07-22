@@ -86,12 +86,12 @@ void draw_setup_tiles(vector3 pos, int type, int angle){
 	glTexCoordPointer(2, GL_FLOAT, 0,  &tsq[type]);
 	glPushMatrix();
 		// tile
-		glTranslatef(pos.x, pos.y, pos.z);
+		glTranslatef(pos.x, pos.y + MODHEIGHT, pos.z);
 		glRotatef(angle, 0, 1, 0);
-		glBindTexture(GL_TEXTURE_2D, t_cards);					// TODO switch for texture
+		glBindTexture(GL_TEXTURE_2D, t_cards);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 		// Shadow
-
+		
 	glPopMatrix();
 
 	glDisable(GL_TEXTURE_2D);
@@ -144,11 +144,9 @@ glewInit();
 	hud_font = TTF_OpenFont("./njnaruto.ttf", (int)(SCREEN_HEIGHT * 0.06));
 	if(!hud_font) {
     	printf("TTF_OpenFont: %s\n", TTF_GetError());
-    // handle error
-}
-	//printf("score_font = %p val = %d\n", score_font,  (int)(SCREEN_HEIGHT * 0.02));
-assert(ed_font != NULL);
-assert(hud_font != NULL);
+	}
+	assert(ed_font != NULL);
+	assert(hud_font != NULL);
 	return 0; 
 
 
@@ -522,23 +520,23 @@ void draw_stack(){
 	glBindTexture(GL_TEXTURE_2D, t_cards);
 	glColor4f(1.0, 1.0, 1.0, 1.0);	
 	// draw stack above waves TODO IS THIS TOO HIGH
-	float add = nodes[2][(int)(GRIDC + GRID_SPACING_INV * p1.position.x)].pos.y + 0.0625;
+	// float add = nodes[2][(int)(GRIDC + GRID_SPACING_INV * p1.position.x)].pos.y + 0.0625;
 
 	for (int i = 0; i < els; ++i){
 
 		n = 0;
 
 		square[n++] = p1.position.x - GRID_SPACING * 2;
-		square[n++]	= p1.position.y + i * 0.002 + add;
+		square[n++]	= p1.position.y + i * 0.002 ;//+ add;
 		square[n++]	= p1.position.z - GRID_SPACING * 2;
 		square[n++]	= p1.position.x - GRID_SPACING * 2;
-		square[n++]	= p1.position.y + i * 0.002 + add;
+		square[n++]	= p1.position.y + i * 0.002 ;//+ add;
 		square[n++]	= p1.position.z + GRID_SPACING * 2;
 		square[n++]	= p1.position.x + GRID_SPACING * 2;
-		square[n++]	= p1.position.y + i * 0.002 + add;
+		square[n++]	= p1.position.y + i * 0.002 ;//+ add;
 		square[n++]	= p1.position.z - GRID_SPACING * 2;
 		square[n++]	= p1.position.x + GRID_SPACING * 2;
-		square[n++]	= p1.position.y + i * 0.002 + add;
+		square[n++]	= p1.position.y + i * 0.002 ;//+ add;
 		square[n++]	= p1.position.z + GRID_SPACING * 2;
 		
 		tidx = p1.tile_type[i];
