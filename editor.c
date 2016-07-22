@@ -142,7 +142,7 @@ void init_gui(){
 	view.w = 90;
 	
 	widgets[ADD_STATE] = create_widget("ADD STATE", BUTTON, LEFT, 20, 20);
-	widgets[ADD_STATE]->handle = add_state;
+	widgets[ADD_STATE]->handle = set_active;// was add_state;
 	widgets[ADD_EVENT] = create_widget("ADD EVENT", BUTTON, LEFT, 20, 60);
 	widgets[ADD_EVENT]->handle = set_active;// was add_event
 	widgets[SAVE_LEVEL] = create_widget("SAVE LEVEL", BUTTON, RIGHT, SCREEN_WIDTH - 20, 20);
@@ -827,6 +827,9 @@ void set_stateidx(int i){
 		if (ldata.index < ldata.no_of_state - 1){
 			ldata.index += 1;
 			repos = 1;
+		}
+		else if (ldata.index == ldata.no_of_state - 1){
+			add_state(ADD_STATE);
 		}
 	}
 
