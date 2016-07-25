@@ -25,12 +25,14 @@
 #define SPRING_STIFFNESS 0.1		// affects speed of ripples
 #define SPRING_DAMPING 0.0012
 #define MAX_TILES 32
-#define GRAVITY 0.0001
+#define GRAVITY 0.001
 #define MAX_ENTITIES 32
-#define MAX_PARTS 9
-#define ELS ((GRIDW - 1)/2) * ((GRIDL - 1)/2)	// no. of triangle fans fir grid
+#define MAX_PARTS 32
+#define ELS ((GRIDW - 1)/2) * ((GRIDL - 1)/2)	// no. of triangle fans for grid
 #define MAX_3DENTITIES 32
 #define MODHEIGHT 0.04
+#define MESSAGE_TIME 20
+
 typedef struct Sound{
 	Mix_Chunk *effect;
 }Sound;
@@ -41,7 +43,8 @@ typedef struct Music{
 enum{				//  SOUND EFFECTS
 	SPLASH,
 	WHOOSH,
-	CYMBOL_SOUND,
+	BOMB,
+	LAUNCH,
 	KILL_SOUND,	
 	MAX_SOUNDS
 };
@@ -58,9 +61,9 @@ enum{				// MUSIC
 enum{				// OBJECT/CARD TYPES
 	SHADOW,
 	GRENADE,
-	HOOK,
 	TORPEDO,
 	LIFE,
+	HOOK,
 	MINE,
 	MODELS,			// DELIMITS 2D AND 3D OBJECTS
 	SINE_Z,
@@ -148,7 +151,7 @@ typedef struct entity_array{
 
 typedef struct entity3d{
 						int type;
-						int weapon;			// Its initial state
+						int weapon;
 						float speed;			// sets velocity 0.05
 						int health;
 						void (*update)(int);	//
@@ -163,6 +166,7 @@ typedef struct entity3d_array{
 					}entity3d_array;
 
 typedef struct particles{
+						int grav;
 						float age;
 						float velocity[3*MAX_PARTS];
 						GLfloat vertex[3*MAX_PARTS];
@@ -256,6 +260,7 @@ extern float model_size;
 extern GLuint t_parts;
 extern GLuint t_cards;
 extern GLuint t_score;
+extern GLuint t_score_blur;
 extern int lives;
 extern int health;
 extern int start_tile_types[MAX_TILES];
@@ -324,6 +329,7 @@ void set_ortho();
 void unset_ortho();
 void display_model();
 void display_stack();
+void grid_stain(float x, float y, int r);
 
 // EVENTS
 void e_all_dead();

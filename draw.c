@@ -96,12 +96,11 @@ void draw_setup_tiles(vector3 pos, int type, int angle){
 
 	glDisable(GL_TEXTURE_2D);
 	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);	
 }
 
 int init_sdl(){
-	//import_model();
+
 	if (SDL_Init(SDL_INIT_VIDEO) < 0){
 		printf("init error! sdl: %s\n", SDL_GetError());
 		return 1;
@@ -137,7 +136,7 @@ int init_sdl(){
 		printf( "SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError() );
 		return 1;
 	}
-glewInit();
+	glewInit();
 	//initGL();
 	set_viewport();
 	ed_font = TTF_OpenFont("./Ultra.ttf", (int)(SCREEN_HEIGHT * 0.02));
@@ -148,8 +147,6 @@ glewInit();
 	assert(ed_font != NULL);
 	assert(hud_font != NULL);
 	return 0; 
-
-
 }	// end of sdl_init
 
 void initGL(){
@@ -176,8 +173,7 @@ void initGL(){
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
 	glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
-	glLightfv(GL_LIGHT0, GL_POSITION, position);
-		
+	glLightfv(GL_LIGHT0, GL_POSITION, position);		
 }
 
 void set_lights(vector3 col){
@@ -357,48 +353,44 @@ void grid_colours(float x, float y, float z){
 				if (i == 0){
 					colours[p].x = (float)rand()/(float)RAND_MAX;
 					colours[p].y = (float)rand()/(float)RAND_MAX;
-					colours[p].z = 0.8; //(float)rand()/(float)RAND_MAX;
-					//colours[p].w = 1 - j * 0.0009;
+					colours[p].z = 0.8; // TODO PLAY WITH THIS
 				// outer colour
 				}else{
-					colours[p].x = x;//0.2;// + (j%3) * 0.2;
-					colours[p].y = y;//0.069;// - (j%13) * 0.015;
-					colours[p].z = z;//0.07;// - (j%19) * 0.007;
-					//colours[p].w = 1 - j * 0.005;
+					colours[p].x = x;
+					colours[p].y = y;
+					colours[p].z = z;
 				}
 				++p;
 			}
 		}
 }
 
+void grid_stain(float x, float z, int r){
+
+	if (z < -GRIDL*GRID_SPACING + GRID_SPACING) return;
+	int x2 = (int)(GRIDC + GRID_SPACING_INV * x);
+	int z2 = -(int)(GRID_SPACING_INV * z);
+	if (x2%2 != 0) x2 = x2 + 1;
+	if (z2%2 != 0) z2 = z2 - 1;
+	z2 = z2 * 80;
+	x2 = x2 * 5;
+	r = z2 + x2;
+
+	for (int i = 0; i < 10; ++i){
+		colours[r].x += 0.5;
+		colours[r].y -= 0.2;
+		colours[r + i].z -= 0.1;
+	}
+	//colours[r+3].x += 0.5;
+	//colours[r+6].x += 0.5;
+}
+
 void draw_grid(){
 
 	int n = 0;
-	int m = 0;
+	//int m = 0;
 	
 	GLfloat vertices[ELS * 30];							// no. of fans * vertex per fan
-	//GLint startsv[ELS];	
-	//GLsizei counts[ELS];
-
-	// set the colours
-	/*for (int j = 0; j < els; ++j){
-		for (int i = 0; i < 10; ++i){
-			// random colour at the center of each tile
-			if (i == 0){
-				colours[p].x = 1; //(float)rand()/(float)RAND_MAX;
-				colours[p].y = (float)rand()/(float)RAND_MAX;
-				colours[p].z = (float)rand()/(float)RAND_MAX;
-				colours[p].w = 1 - j * 0.0009;
-			// outer colour
-			}else{
-				colours[p].x = 0.2;// + (j%3) * 0.2;
-				colours[p].y = 0.069;// - (j%13) * 0.015;
-				colours[p].z = 0.07;// - (j%19) * 0.007;
-				colours[p].w = 1 - j * 0.005;
-			}
-			++p;
-		}
-	} */
 
 	// SHOULD BE ABLE TO USE NODES AS AN INDEXED VBO W/TRI STRIPS
 	// RUNNING LENGTHWISE FOR GRIDW/2 DRAW CALLS!!!!!!
@@ -409,7 +401,7 @@ void draw_grid(){
 			//startsv[m] = n/3;
 			//counts[m] = 10;
 
-			++m;
+		//++m;
 			vertices[n] = nodes[i][j].pos.x;
 			++n;
 			vertices[n] = nodes[i][j].pos.y;
@@ -590,8 +582,8 @@ void display_stack(){
 	glDisable(GL_TEXTURE_2D);
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-
 }
+
 void draw_active_tiles(){
 
 	static const GLfloat square[] = { 	-GRID_SPACING * 2, 	0,	-GRID_SPACING * 2,
@@ -635,10 +627,18 @@ void draw_active_tiles(){
 				glPushMatrix();
 					// tile
 					glTranslatef(((torpedo *)p1.act.tiles[i].data)->position.x, ((torpedo *)p1.act.tiles[i].data)->position.y, ((torpedo *)p1.act.tiles[i].data)->position.z);
-					glBindTexture(GL_TEXTURE_2D, t_cards);					// TODO switch for texture
+					glBindTexture(GL_TEXTURE_2D, t_cards);
 					glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 				glPopMatrix();
 				break;
+			// case HOOK:
+			// 	glPushMatrix();
+			// 		// tile
+			// 		glTranslatef(((hook *)p1.act.tiles[i].data)->position.x, ((hook *)p1.act.tiles[i].data)->position.y, ((hook *)p1.act.tiles[i].data)->position.z);
+			// 		glBindTexture(GL_TEXTURE_2D, t_cards);					// TODO switch for texture
+			// 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+			// 	glPopMatrix();
+			// 	break;
 			default:
 				break;
 		}
@@ -655,7 +655,7 @@ void draw_entities(){
 	++x;
 	x = x % 360;
 
-	GLfloat square[] = { -0.04, 0.04, 0, 0, 0, 0.08, 0.04, 0.04 };
+	GLfloat square[] = { -0.06, 0.06, 0, 0, 0, 0.12, 0.06, 0.06 };
 	glColor4f(1, 1, 1, 1);
 	glEnable(GL_TEXTURE_2D);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -695,7 +695,6 @@ void load_model(){
 	//								array size 				the array 
 	glBufferData(GL_ARRAY_BUFFER, sizeof(model_data) * no_of_verts, model, GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
 }
 
 void draw_models(){
@@ -724,7 +723,6 @@ void draw_models(){
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 	glDisable(GL_LIGHTING);
 	return;
-
 }
 
 void display_model(){
@@ -758,25 +756,21 @@ void display_model(){
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 	glDisable(GL_LIGHTING);
-
 }
 
 void draw_particles(const particles *parts){
 	
-	//static GLfloat distance[] = { 1.0, 1.0, 1.00 };
-//glPointParameterfv(GL_POINT_SIZE_MIN, 0);
+
 	glEnableClientState(GL_VERTEX_ARRAY);
 	//glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	glEnable(GL_TEXTURE_2D);					
-	//glTexCoordPointer(2, GL_FLOAT, 0,  &tsq[0]);
-
-	
 	glEnable(GL_POINT_SPRITE);
 	glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
 	glDisable(GL_DEPTH_TEST);
-	glPointSize(64 * parts->age); // TODO MOVE TO GLINIT MAKE DPI INDEPENDENT
-	glColor4f(1, 0.2, 0.2, parts->age);
-	glBindTexture(GL_TEXTURE_2D, t_parts); // TODO OPT TO ONCE PER FRAME?
+	glPointSize(128 + 40 * parts->vertex[2]); // TODO MOVE TO GLINIT MAKE DPI INDEPENDENT
+	printf("size == %f\n", 128 + 25 * parts->vertex[2]);
+	glColor4f(1, 0.1, 0.3, parts->age);
+	glBindTexture(GL_TEXTURE_2D, t_parts); // TODO OPTIMISE TO ONCE PER FRAME?
 	glVertexPointer(3, GL_FLOAT, 0, parts->vertex);
 
 	glDrawArrays(GL_POINTS, 0, MAX_PARTS);
@@ -899,7 +893,7 @@ void draw_widgets(){
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	glEnable(GL_TEXTURE_2D);
-
+	// TODO OPTIMISE TO ONE DRAW CALL FOR ALL WIDGETS
 	for (int i = 0; i < no_of_widget; ++i){
 
 		if (widgets[i]->state == 0)
@@ -985,18 +979,22 @@ void draw_score(int score){
 	for (int i = 6; i < lives + 6; ++i){
 		coords[i] = t_nums[10];
 	}
-
+    //glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_ADD);
 	glColor4f(hud_r, hud_g, hud_b, 0.7);
 	glEnable(GL_TEXTURE_2D);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	glBindTexture(GL_TEXTURE_2D, t_score);	
+	//glBindTexture(GL_TEXTURE_2D, t_score);	
 	glVertexPointer(2, GL_FLOAT, 0, square);
 	glTexCoordPointer(2, GL_FLOAT, 0, &coords[0]);
 
-	for (int i = 0; i < 6 + lives; ++i){		
-		glDrawArrays(GL_TRIANGLE_STRIP, i * 4, 4);		
+	for (int i = 0; i < 6 + lives; ++i){	
+		glBindTexture(GL_TEXTURE_2D, t_score);	
+		glDrawArrays(GL_TRIANGLE_STRIP, i * 4, 4);	
+		glBindTexture(GL_TEXTURE_2D, t_score_blur);
+		glDrawArrays(GL_TRIANGLE_STRIP, i * 4, 4);	
+
 	}
 	
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE);

@@ -141,9 +141,9 @@ void init_gui(){
 	view.z = -2.94;
 	view.w = 90;
 	
-	widgets[ADD_STATE] = create_widget("ADD STATE", BUTTON, LEFT, 20, 20);
+	widgets[ADD_STATE] = create_widget("STATES", BUTTON, LEFT, 20, 20);
 	widgets[ADD_STATE]->handle = set_active;// was add_state;
-	widgets[ADD_EVENT] = create_widget("ADD EVENT", BUTTON, LEFT, 20, 60);
+	widgets[ADD_EVENT] = create_widget("EVENTS", BUTTON, LEFT, 20, 60);
 	widgets[ADD_EVENT]->handle = set_active;// was add_event
 	widgets[SAVE_LEVEL] = create_widget("SAVE LEVEL", BUTTON, RIGHT, SCREEN_WIDTH - 20, 20);
 	widgets[SAVE_LEVEL]->handle = save_level;
@@ -364,7 +364,7 @@ void add_object(int u){
 		ldata.states[ldata.index].objects = 
 		realloc(ldata.states[ldata.index].objects, sizeof(object) * ldata.states[ldata.index].no_of_object);
 		ldata.states[ldata.index].objects[i].type = GRENADE;
-		ldata.states[ldata.index].objects[i].health = 1;	// bunus multiplier
+		ldata.states[ldata.index].objects[i].health = 1;	// bonus multiplier
 		ldata.states[ldata.index].objects[i].pos.x = 0;
 		ldata.states[ldata.index].objects[i].pos.y = 0;
 		ldata.states[ldata.index].objects[i].pos.z = -0.5;
@@ -381,10 +381,9 @@ void context_menu(){
 	int x = 0;
 	char str[64];
 	
-	char *labels[3];
+	char *labels[2];
 	labels[0] = "GRENADE";
-	labels[1] = "  HOOK  ";
-	labels[2] = "TORPEDO";
+	labels[1] = "TORPEDO";
 
 	//t = ldata.no_of_tiles;
 	//ldata.tile_types[32];	
@@ -460,16 +459,17 @@ void context_state(){
 
 void context_bonus(){
 	
-	char *b_type[5];
+	char *b_type[4];
 	char str[32];
 	float val;
 	float dpnx = 6.3;
 	float dpny = 6.4;
-	b_type[0] = "   TYPE   ";		// SETS notion
+	b_type[0] = "TYPE";
 	b_type[1] = "GRENADE";
-	b_type[2] = "  HOOK  ";
-	b_type[3] = "TORPEDO";
-	b_type[4] = "   LIFE   ";
+	b_type[2] = "TORPEDO";
+	b_type[3] = "LIFE";
+
+	//b_type[4] = "   LIFE   ";
 
 	int o = object_idx;//ldata.states[ldata.index].no_of_object - 1;
 
@@ -502,7 +502,7 @@ void context_bonus(){
 	}
 
 	o = ldata.states[ldata.index].objects[object_idx].type;
-	
+	printf("o = %d\n", o);
 	draw_text(b_type[o], CENTER, SCREEN_WIDTH/2, 250);
 
 	sprintf(str, "   X %d   ", ldata.states[ldata.index].objects[object_idx].health);
@@ -684,7 +684,7 @@ void context_event(){
 void set_cardtype(int i){
 	
 	++cardtype;
-	if (cardtype > 2) cardtype = 0;
+	if (cardtype > 1) cardtype = 0;
 }
 
 void add_card(int i){
@@ -1177,7 +1177,9 @@ void set_bonus_type(int i){
 
 	int idx = ldata.index;	
 	object *ob  = &ldata.states[idx].objects[object_idx];
-	ob->type = (ob->type) % 4 + 1; 	
+	ob->type = (ob->type) % 3 + 1; 	
+	printf("%i\n", ob->type);
+
 	kill_entity(bonus_idx - 1);
 	create_entity(ldata.states[idx].objects[object_idx].pos, ldata.states[idx].objects[object_idx].type);
 }

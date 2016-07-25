@@ -4,7 +4,7 @@ void handle_events(void);
 void update_node(void);
 void update_spring(void);
 void update_tiles(void);
-void displace(int x, int z, float strength);
+void displace(float x, float z, float strength);
 void add_force(vector3 f, int i, int row);
 void init_grenade(float speed);
 void init_torpedo(float unused);
@@ -15,11 +15,15 @@ void kill_entity(int idx);
 void init_particles();
 void set_particles(vector3 pos);
 void update_particles(particles * parts, float time);
-void create_entity(vector3 pos, int type);
+void create_entity(vector3 pos, int type, int multiply);
 void create_entity3d(object *obj);
 void init_level(char *str);
 void init_player();
 void mod_height();
+void collect_item(int);
+void collect_cards(int number, int type);
+void delete_active_tile(int i);
+
 //sint setup_tiles();
 
 void load_gamestate();
@@ -50,6 +54,7 @@ entity3d_array en3d;
 GLuint t_parts;
 GLuint t_cards;
 GLuint t_score;
+GLuint t_score_blur;
 level_data ldata;
 int start_tile_types[MAX_TILES];
 int start_no_of_tile = 0;
@@ -70,7 +75,10 @@ int editor_mode = 0;
 int music_index = 0;
 int gridmod = 0;
 int lives = 3;
-int message = 0;
+int message_flag = 0;
+char message[64] = "";
+int flicker = 0;
+
 
 int setup_tiles(){
 
@@ -96,7 +104,7 @@ int setup_tiles(){
 	while (pos[p1.no_of_tiles - 1].z < p1.position.z){
 		
 		handle_events();	// todo handle system events
-				draw_grid();
+		draw_grid();
 
 		if (quit == 1)
 			return 0;
@@ -132,7 +140,6 @@ int setup_tiles(){
 	return 0;
 }
 
-
 int main(int argc, char* args[]){
 
 	if (argc > 1)
@@ -147,7 +154,6 @@ int main(int argc, char* args[]){
 	Uint32 accumclock = 0;
 	Uint32 oldclock = SDL_GetTicks();
 	play_music();
-
 	while (!quit){
 		
 		handle_events();
@@ -200,8 +206,8 @@ int main(int argc, char* args[]){
 		while (accumclock > 64){					// if > 16ms (60fps)
 			update_node();							// TODO HOW DOES VSYNC AFFECT THIS?
 			update_spring();
-			if (message)
-				--message;						// TODO ARE WE RENDER BOUND OR PHYSICS BOUND?
+			if (message_flag)
+				--message_flag;						// TODO ARE WE RENDER BOUND OR PHYSICS BOUND?
 			accumclock -= 64;			
 		}
 		assert (ldata.events[ldata.ev_idx].handle != 0);
@@ -221,7 +227,7 @@ int main(int argc, char* args[]){
 			if (parts[i].age > 0){
 				update_particles(&parts[i], frametime);
 				draw_particles(&parts[i]);
-				parts[i].age -= 0.01;
+				parts[i].age -= 0.015;
 			}
 		}
 
@@ -234,14 +240,19 @@ int main(int argc, char* args[]){
 
 		set_ortho();
 			draw_score(93210);
-			if (message){
-				draw_text(ldata.states[ldata.index].message, CENTER, SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
+			if (message_flag){
+				draw_text(message, CENTER, SCREEN_WIDTH/2, SCREEN_HEIGHT/4);
 			}
 		unset_ortho();
 		
 		SDL_GL_SwapWindow(mywindow);
 		SDL_Delay(1);
+		if (flicker){
+			flicker = 0;
+			continue;
+		}
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);		
+
 	}
 
 
@@ -269,10 +280,11 @@ void init_sound(){
   	}
   	Mix_AllocateChannels(16);	
 
-	sound[SPLASH].effect = Mix_LoadWAV("./data/splash.wav");
-	sound[WHOOSH].effect = Mix_LoadWAV("./data/whoosh.wav");
-	sound[CYMBOL_SOUND].effect = Mix_LoadWAV("./data/splash.wav");
-	sound[KILL_SOUND].effect = Mix_LoadWAV("./data/kill.wav");
+	sound[SPLASH].effect = Mix_LoadWAV("./data/splash.ogg");
+	sound[WHOOSH].effect = Mix_LoadWAV("./data/whoosh.ogg");
+	sound[BOMB].effect = Mix_LoadWAV("./data/bomb.ogg");
+	sound[KILL_SOUND].effect = Mix_LoadWAV("./data/kill.ogg");
+	sound[LAUNCH].effect = Mix_LoadWAV("./data/torpedo.ogg");
 
 	//load_music();
 }
@@ -403,8 +415,9 @@ void init_game(){
 	}
 
 	t_score = load_texture("data/score.png", 8);	// THIS IS ACTUALLY 1BIT INDEXED?
+	t_score_blur = load_texture("data/scoreblur.png", 8);
 	t_parts = load_texture("data/part2.png", 32);
-	t_cards = load_texture("data/cards3.png", 32);
+	t_cards = load_texture("data/cards4.png", 32);
 	active_font = hud_font;
 	char str[16];
 	sprintf(str, "level%u.dat", level);
@@ -428,6 +441,8 @@ void init_player(){
 			case TORPEDO:
 				p1.activate[i] = init_torpedo;
 				break;
+			//case HOOK:
+				//p1.activate[i] = init_hook;
 			default:
 				p1.activate[i] = init_torpedo;
 				break;
@@ -478,101 +493,6 @@ void init_level(char *str){
 	setup_tiles();
 	load_gamestate();
 	return;
-/*
-	model_size = 0.3;
-	en.no_active = 0;
-	en3d.no_active = 0;
-
-	// SETUP PLAYER
-	p1.no_of_tiles = 12;
-
-	for (int i = 0; i < 25; ++i){		// test data for stack
-		p1.tile_type[i] = GRENADE;
-		p1.activate[i] = init_grenade;
-		++i;
-		p1.tile_type[i] = TORPEDO;
-		p1.activate[i] = init_torpedo;
-	} 
-	
-	p1.position.x = nodes[2][GRIDW/2].pos.x;			// center of grid
-	p1.position.y = nodes[2][GRIDW/2].pos.y + 0.002; 	// above the grid surface
-	p1.position.z = nodes[2][GRIDW/2].pos.z;			// in front of the camera
-	p1.act.no_active = 0;
-
-	for (int i = 0; i < MAX_TILES; ++i){
-		p1.act.tiles[i].type = 99;						// this is never a valid tile type!
-		p1.act.tiles[i].data = NULL;
-	}
-
-	// LOAD LEVEL DATA
-	ldata.index = 0;				// could be used to resume partway through a level OR TEST
-	ldata.no_of_event = 2;			// test data
-	ldata.ev_idx = 0;
-	// FILL/SET EVENTS
-	ldata.events = malloc(sizeof(event) * ldata.no_of_event);
-
-	ldata.events[0].type = ALL_DEAD;	// test data
-	ldata.events[0].val1 = 0;			// test data
-	ldata.events[0].val2 = 0;			// test data
-	ldata.events[0].val3 = 1 ;			// test data
-	ldata.events[1].type = END_LEVEL;	// test data
-	ldata.events[1].val1 = 0;			// test data
-	ldata.events[1].val2 = 0;			// test data
-	ldata.events[1].val3 = 0;			// test data
-
-	for (int i = 0; i < ldata.no_of_event; ++i){
-		switch (ldata.events[i].type){
-			case ALL_CLEAR:
-				break;
-			case ALL_DEAD:
-				ldata.events[i].handle = e_all_dead;
-				break;
-			case KILLED_ENTITIES:
-				break;
-			case END_LEVEL:
-				ldata.events[i].handle = e_end_level;
-				break;
-			default:
-				break;
-		}
-	}
-	
-	// FILL/SET STATES
-	ldata.no_of_state = 2;	// test data
-
-	ldata.states = malloc(sizeof(state) * ldata.no_of_state);
-	ldata.states[0].no_of_object = 2;	// test data
-	ldata.states[1].no_of_object = 3;	// test data
-	ldata.states[0].model_size = 0.3;
-	ldata.states[1].model_size = 0.1;
-	snprintf(ldata.states[0].model, 16, "ship.dat");
-	snprintf(ldata.states[1].model, 16, "centaur.dat");
-	// FILL/SET OBJECTS
-	for (int i = 0; i < ldata.no_of_state; ++i){
-		ldata.states[i].objects = malloc(sizeof(object) * ldata.states[i].no_of_object);
-		for (int j = 0; j < ldata.states[i].no_of_object; ++j){
-			//ldata.states[i].objects[j].type = SINE_Z;				// test data
-			ldata.states[i].objects[j].type = LINEAR;	
-			//ldata.states[i].objects[j].type = GRENADE;
-			ldata.states[i].objects[j].speed = 5;				// test data
-			ldata.states[i].objects[j].health = 10; 
-			ldata.states[i].objects[j].pos.x = 0.1*j;				// test data
-			ldata.states[i].objects[j].pos.y = 0.0;				// test data	
-			ldata.states[i].objects[j].pos.z = -0.4*j - 1;			// test data
-			
-		}
-	}
-
-	write_leveldata("data/resource.bin");
-
-	read_leveldata("data/resource.bin");
-	
-	//write_model("newmod.dat");
-	// SET GRID COLOUR
-	grid_colours(0.0, 0.0, 0.0); // test data
-	// LOAD NEXT STATE INTO GAME
-	load_gamestate();
-	*/
 }
 
 void load_gamestate(){
@@ -588,7 +508,7 @@ void load_gamestate(){
 	for (int i = 0; i < ldata.states[idx].no_of_object; ++i){
 
 		if (ldata.states[idx].objects[i].type < MODELS){
-			create_entity(ldata.states[idx].objects[i].pos, ldata.states[idx].objects[i].type);
+			create_entity(ldata.states[idx].objects[i].pos, ldata.states[idx].objects[i].type, ldata.states[idx].objects[i].health);
 		}
 		else{
 			create_entity3d(&ldata.states[idx].objects[i]);
@@ -596,7 +516,8 @@ void load_gamestate(){
 	}
 
 	if (ldata.states[idx].message[0] != '\0'){
-		message = 20;
+		message_flag = MESSAGE_TIME;
+		strncpy(message, ldata.states[ldata.index].message, 63);
 	}
 }
 
@@ -651,7 +572,6 @@ void e_end_level(){
 		sprintf(str, "level%u.dat", level);
 		init_level(str);
 	}
-
 }
 
 void e_alt_music(){
@@ -788,20 +708,21 @@ void e_grid_mod(){
 void mod_height(){
 
 	p1.position.y = nodes[2][(int)(GRIDC + GRID_SPACING_INV * p1.position.x)].pos.y + MODHEIGHT;
-return;
-	for (int i = 0; i < en3d.no_active; ++i){
-		if (en3d.data[i].pos.z > -(GRIDL - 1) * GRID_SPACING)
-		//if (en3d.data[i].update)
-		en3d.data[i].pos.y += nodes[2][(int)(GRIDC + GRID_SPACING_INV * en3d.data[i].pos.x)].pos.y;
+
+	for (int i = 0; i < en.no_active; ++i){
+		int x = (int)(GRIDC + GRID_SPACING_INV * en.data[i].pos.x);
+		int z = -(int)(GRID_SPACING_INV * en.data[i].pos.z);
+		en.data[i].pos.y = nodes[z][x].pos.y;
 	}
 }
 
-void create_entity(vector3 pos, int type){
+void create_entity(vector3 pos, int type, int multiply){
 
 	if (en.no_active == MAX_ENTITIES)
 		return;
 
 	en.data[en.no_active].type = type;
+	en.data[en.no_active].multiply = multiply;
 	en.data[en.no_active].pos.x = pos.x;
 	en.data[en.no_active].pos.y = pos.y;
 	en.data[en.no_active].pos.z = pos.z;
@@ -854,10 +775,10 @@ void update_sinez(int i){
 	new_z = -1 * en3d.data[i].vel.y * cosf(2 * PI * en3d.data[i].vel.x - 1);
 	en3d.data[i].ang.z = new_z * 100;
 	if ((en3d.data[i].pos.y < 0) && new_y > 0){	// UP
-		displace(en3d.data[i].pos.x/GRID_SPACING, -(en3d.data[i].pos.z) * GRID_SPACING_INV - 7, 0.02);
+		displace(en3d.data[i].pos.x, en3d.data[i].pos.z + 0.14, 0.02);
 	}
 	if ((en3d.data[i].pos.y > 0) && (new_y < 0)){	// DOWN
-		displace(en3d.data[i].pos.x/GRID_SPACING, -(en3d.data[i].pos.z) * GRID_SPACING_INV - 7, -0.02);
+		displace(en3d.data[i].pos.x, en3d.data[i].pos.z + 0.14, -0.02);
 	}
 	
 	en3d.data[i].pos.z += (en3d.data[i].vel.z) * time;
@@ -872,9 +793,8 @@ void update_sinez(int i){
 void update_linear(int i){
 	
 	float time = frametime / 100.0;
-	//en3d.data[i].pos.y = 0.00;
-	float z = en3d.data[i].pos.z * GRID_SPACING_INV;
- 	displace(en3d.data[i].pos.x * GRID_SPACING_INV, -z, -0.01);
+
+ 	displace(en3d.data[i].pos.x, en3d.data[i].pos.z, -0.01);
 
 	en3d.data[i].pos.z += (en3d.data[i].vel.z) * time;
 	// reset dolphin
@@ -883,6 +803,7 @@ void update_linear(int i){
 		en3d.data[i].vel.x = 0;
 	}
 }
+
 void update_node(){
 
 	int row;
@@ -914,7 +835,6 @@ void update_node(){
 			v3_scaler_multiply(&nodes[i][row].vel, nodes[i][row].damping);
 		}
 	}
-
 }
 
 void update_spring(){
@@ -1050,33 +970,25 @@ void add_force(vector3 f, int i, int row){
 	nodes[i][row].accel = v3_add(&nodes[i][row].accel, &f);
 }
 
-void displace(int x, int z, float strength){
+void displace(float x, float z, float strength){
+	
+	x = x * GRID_SPACING_INV;
 	x += GRIDW/2;
-	// TODO ALTER THIS TO ACCEPT FLOAT COORDS
+	z = -z * GRID_SPACING_INV;
+
 	if (z > GRIDL || x > GRIDW){		// DEBUG CODE
 		return;
 	}
 	if (z < 0 || x < 0){				// DEBUG CODE
 		return;
 	}
-		// because grid centered at 0
-	// CENTER COLUMN
-	//nodes[x-1][y].accel.y -= strength;
-	nodes[z][x].accel.y += strength * 2;
-	//nodes[x+1][y].accel.y -= strength;
-	// RIGHT COLUMN
-//	nodes[x-1][y+1].accel.y += strength;
-//	nodes[x][y+1].accel.y -= strength;
-//	nodes[x+1][y+1].accel.y += strength;
-	// LEFT COLUMN
-//	nodes[x-1][y-1].accel.y += strength;
-//	nodes[x][y-1].accel.y -= strength;
-//	nodes[x+1][y-1].accel.y += strength;
+
+	nodes[(int)z][(int)x].accel.y += strength * 2;
 }
 
 void init_grenade(float speed){
 
-	play_sound(WHOOSH, 0);
+	play_sound(LAUNCH, 0);
 	grenade * new;
 	new = (grenade *)malloc (sizeof(grenade));
 
@@ -1089,11 +1001,11 @@ void init_grenade(float speed){
 	new->position.z = p1.position.z;
 
 	new->velocity.x = 0;
-	new->velocity.y = 0;//0.001*speed;
-	new->velocity.z = -0.06;
+	new->velocity.y = speed/2;//0.03;//0.001*speed;
+	new->velocity.z = -speed*2;//-0.06;
 
 	new->acceleration.x = 0;
-	new->acceleration.y = 0.001*speed;
+	new->acceleration.y = 0.001;
 	new->acceleration.z = 0;
 	p1.act.tiles[p1.act.no_active].type = GRENADE;
 	p1.act.tiles[p1.act.no_active].data = new;
@@ -1113,19 +1025,41 @@ int update_grenade(grenade *g){		// return int to indicate if grenade is still l
  
 	if (g->position.y < 0){
 		
-		float z = g->position.z/GRID_SPACING;		
-		displace(g->position.x/GRID_SPACING, -z, 0.05);
-		play_sound(SPLASH, 0);
+		flicker = 1;
+		displace(g->position.x, g->position.z, 0.05);
+		play_sound(BOMB, 0);
+		float front, back, left, right;
+		// Collisions for grenades go here
+		back = g->position.z - GRID_SPACING*8;
+		front = back + GRID_SPACING*16;
+		left = g->position.x - GRID_SPACING*5;
+		right = left + GRID_SPACING*10;
+
+		for (int e = 0; e < en.no_active; ++e){	
+			
+			if(en.data[e].pos.z > back && en.data[e].pos.z < front){
+				if(en.data[e].pos.x > left && en.data[e].pos.x < right){
+					collect_item(e);
+				}
+			}
+		}
+		for (int e = 0; e < en3d.no_active; ++e){
+			if(en3d.data[e].pos.z > back && en3d.data[e].pos.z < front){
+				if(en3d.data[e].pos.x > left && en3d.data[e].pos.x < right){
+					kill_entity3d(e);
+				}
+			}
+		}
+
 		return 1;
 	}
 
-	return 0;
-		
+	return 0;	
 }
 
 void init_torpedo(float unused){
 
-	play_sound(WHOOSH, 0);
+	play_sound(LAUNCH, 0);
 	torpedo * new;
 	new = (torpedo *)malloc (sizeof(torpedo));
 
@@ -1152,8 +1086,8 @@ int update_torpedo(torpedo *t){
 	if (-t->position.z > GRIDL * GRID_SPACING){		
 		return 1;
 	}
-	float z = t->position.z/GRID_SPACING;
- 	displace(t->position.x/GRID_SPACING, -z, -0.01);
+	//grid_stain(t->position.x, t->position.z, 0);
+ 	displace(t->position.x, t->position.z, -0.01);
  	//displace(t->position.x/GRID_SPACING, -z + GRID_SPACING*2, -0.001);
  	//displace(t->position.x/GRID_SPACING, -z - GRID_SPACING*2, -0.001);
 
@@ -1180,52 +1114,46 @@ void update_tiles(){
 		}
 		
 		if (status == 1){
-			assert (p1.act.tiles[i].data != NULL);
-			free (p1.act.tiles[i].data);
-			p1.act.tiles[i].data = NULL;
-			if (i != p1.act.no_active - 1){	// if not last tile, move last tile into its place
-				//memmove(&p1.act.tiles[i], &p1.act.tiles[p1.act.no_active - 1], sizeof(tile));
-				p1.act.tiles[i] = p1.act.tiles[p1.act.no_active - 1];	// TODO this was ok???
-				--i; // Current i is now different
-			}
-			--p1.act.no_active;
+			delete_active_tile(i);
 			status = 0;
 		}
 	}
-	
+}
+
+void delete_active_tile(int i){
+
+	assert (p1.act.tiles[i].data != NULL);
+	free (p1.act.tiles[i].data);
+	p1.act.tiles[i].data = NULL;
+	if (i != p1.act.no_active - 1){	// if not last tile, move last tile into its place
+		//memmove(&p1.act.tiles[i], &p1.act.tiles[p1.act.no_active - 1], sizeof(tile));
+		p1.act.tiles[i] = p1.act.tiles[p1.act.no_active - 1];	// TODO this was ok???
+		--i; // Current i is now different
+	}
+	--p1.act.no_active;
 }
 
 void collisions(){
 
-	float left, right;
+	float left, right, front, back;
+	int flag = 0;
 	// ACTIVE TILES -- ENTITIES
 	if (p1.act.no_active != 0){
 
 		for (int i = 0; i < p1.act.no_active; ++i){
 			// CHECK AGAINST 2D ENTITIES
 			for (int e = 0; e < en.no_active; ++e){
-				// TODO COULD REDUCE POINTER CHAINS HERE IF NEEDED
-				// vector3 *tile_pos = (torpedo*)(p1.act.tiles[i].data)->position
-				// vector3 *en_pos = en.data[e].pos
+
 				switch (p1.act.tiles[i].type){
 					case TORPEDO:
-						// TODO RELACE THESE WITH HITBOX IN DATA
 						// (x >= min && x < max) can be transformed into (unsigned)(x-min) < (max-min)
-						// faster!!
 						left = ((torpedo*)p1.act.tiles[i].data)->position.z - GRID_SPACING;
-						right = ((torpedo*)p1.act.tiles[i].data)->position.z + GRID_SPACING;
+						right = left + 2 * GRID_SPACING;
 						if(en.data[e].pos.z > left && en.data[e].pos.z < right){
 							if(en.data[e].pos.x > ((torpedo*)p1.act.tiles[i].data)->position.x - GRID_SPACING*3){
 								if(en.data[e].pos.x < ((torpedo*)p1.act.tiles[i].data)->position.x + GRID_SPACING*3){
-									kill_entity(e);
+									collect_item(e);
 								} 
-							}
-						}
-						break;
-					case GRENADE:
-						if(en.data[e].pos.z == ((grenade*)p1.act.tiles[i].data)->position.z){
-							if(en.data[e].pos.x == ((grenade*)p1.act.tiles[i].data)->position.x){
-								// TODO KILL or MAIM, check plus radius of effect
 							}
 						}
 						break;
@@ -1237,31 +1165,81 @@ void collisions(){
 			for (int e = 0; e < en3d.no_active; ++e){
 				switch (p1.act.tiles[i].type){
 					case TORPEDO:
-						left = ((torpedo*)p1.act.tiles[i].data)->position.z - GRID_SPACING;
-						right = ((torpedo*)p1.act.tiles[i].data)->position.z + GRID_SPACING;
+						back = ((torpedo*)p1.act.tiles[i].data)->position.z - GRID_SPACING;
+						front = ((torpedo*)p1.act.tiles[i].data)->position.z + GRID_SPACING;
 						if (en3d.data[e].pos.y < 0)	// dolphin under water
 							break;
 						if (en3d.data[e].pos.x > ((torpedo*)p1.act.tiles[i].data)->position.x - GRID_SPACING * 2){
 							if(en3d.data[e].pos.x < ((torpedo*)p1.act.tiles[i].data)->position.x + GRID_SPACING * 2){
-								if((en3d.data[e].pos.z > left) && (en3d.data[e].pos.z < right)){
+								if((en3d.data[e].pos.z > back) && (en3d.data[e].pos.z < front)){
 									kill_entity3d(e);
+									delete_active_tile(i);
+									--i;
 								}
 							}
 						}
 						break;
-					case GRENADE:
-						break;	
 					default:
 						break;	
 				}
-			
 			}
 		}
 	}
 }
 
+void collect_item(int idx){
+
+	play_sound(SPLASH, 0);
+	message_flag = MESSAGE_TIME;
+
+	switch (en.data[idx].type){
+		case TORPEDO:
+			sprintf(message, "Missile X%i", en.data[idx].multiply);
+			collect_cards(en.data[idx].multiply, TORPEDO);
+			break;
+		case GRENADE:
+			sprintf(message, "Grenade X%i", en.data[idx].multiply);
+			collect_cards(en.data[idx].multiply, GRENADE);
+			break;
+		case LIFE:
+			sprintf(message, "Life X%i", en.data[idx].multiply);
+			lives += en.data[idx].multiply;
+			break;
+		default:
+			break;
+	}
+	memmove(&en.data[idx], &en.data[en.no_active-1], sizeof(entity));
+	--en.no_active;	
+}
+
+void collect_cards(int number, int type){
+	
+	for (int x = 0; x < number; ++x){
+		if (p1.no_of_tiles < MAX_TILES){
+
+			p1.tile_type[p1.no_of_tiles] = type;
+
+			switch(type){
+
+				case GRENADE:
+					p1.activate[p1.no_of_tiles] = init_grenade;
+					break;
+				case TORPEDO:
+					p1.activate[p1.no_of_tiles] = init_torpedo;
+					break;
+				default:
+					break;
+			}
+
+			++p1.no_of_tiles;
+		}
+	}
+	printf("Added %i cards\n", number);
+}
+
 void kill_entity(int idx){
 	// delete entity and sort array decrement no_active
+	play_sound(KILL_SOUND, 0);
 
 	memmove(&en.data[idx], &en.data[en.no_active-1], sizeof(entity));
 	--en.no_active;	
@@ -1269,17 +1247,25 @@ void kill_entity(int idx){
 
 void kill_entity3d(int idx){
 	// delete entity and sort array decrement no_active
+	flicker = 1;
 	set_particles(en3d.data[idx].pos);
-	play_sound(KILL_SOUND, 0);
-	memmove(&en3d.data[idx], &en3d.data[en3d.no_active-1], sizeof(entity3d));
-	en3d.no_active -= 1;	
+	grid_stain(en3d.data[idx].pos.x, en3d.data[idx].pos.z, 0);
+
+	if (en3d.data[idx].health == 0){
+		play_sound(KILL_SOUND, 0);
+		memmove(&en3d.data[idx], &en3d.data[en3d.no_active-1], sizeof(entity3d));
+		en3d.no_active -= 1;		
+	}
+	else{
+		--en3d.data[idx].health;
+	}
 }
 
 void init_particles(){
 	
 	float theta;
 	float z;
-	float adj = 0.01;
+	float adj = 0.02;
 	// http://math.stackexchange.com/questions/44689/how-to-find-a-random-axis-or-unit-vector-in-3d
 	for (int j = 0; j < 4; ++j){
 		for (int i = 0; i < 3 * MAX_PARTS; ++i){
@@ -1287,6 +1273,7 @@ void init_particles(){
 			z = ((float)rand()/(float)RAND_MAX) * 2.0 - 1;
 			parts[j].velocity[i++] = sqrt(1 - z * z) * cos(theta) * adj;
 			parts[j].velocity[i++] = (sqrt(1 - z * z) * sin(theta) * adj * 2);
+			parts[j].grav = 1; 
 			parts[j].velocity[i] = adj * z;
 			parts[j].age = 0;
 		}
@@ -1305,6 +1292,9 @@ void set_particles(vector3 pos){
 		next_parts->vertex[i++] = pos.y;
 		next_parts->vertex[i] = pos.z;
 	}
+	// for (int i = 1; i < 3 * MAX_PARTS; i+=3){
+	// 	next_parts->velocity[i] = next_parts->start_y;
+	// }
 	next_parts->age = 1.0;
 	next_parts = next_parts->next;
 }
@@ -1316,12 +1306,14 @@ void update_particles(particles *parts, float time){
 		if (parts->vertex[i+1] > -0.001){
 			parts->vertex[i] += parts->velocity[i] * ft;		
 			++i;
-			//parts->velocity[i] -= GRAVITY*5;// TODO SHOULD BE VERTEX TO AVOID REINIT
-			parts->vertex[i] += parts->velocity[i] * ft;
+			//parts->vertex[i] -= GRAVITY * ft;// TODO SHOULD BE VERTEX TO AVOID REINIT
+			parts->vertex[i] += parts->velocity[i] * ft - 0.0001 * parts->grav * ft;// - GRAVITY;
+			++parts->grav;
 			++i;
 			parts->vertex[i] += parts->velocity[i] * ft;
 		}
 		else {
+			grid_stain(parts->vertex[i], parts->vertex[i+2], 0);
 			i +=2;
 		}
 	}
@@ -1332,6 +1324,8 @@ void handle_events(){
 	static float red = 0;
 	static float green = 0;
 	static float blue = 0;
+	static float strength = 0.05;
+	static int stain = 0;
 	SDL_Event e;
 	while (SDL_PollEvent(&e) != 0){
 		
@@ -1376,12 +1370,23 @@ void handle_events(){
 			case SDLK_d:
 				view.w -= 6;	//printf("view.w %f\n", view.w);
 				break;
+			case SDLK_i:
+				++stain;
+				grid_stain(0,0,stain);	printf("stain %i\n", stain);
+				break;
+			
 			case SDLK_m:
 				music_index = (music_index + 1)%8;
 				break;
 			case SDLK_SPACE:
 				if (p1.no_of_tiles > 0)
-					p1.activate[p1.no_of_tiles-1](0.6);
+					p1.activate[p1.no_of_tiles-1](strength);
+				break;
+			case SDLK_p:
+				if (strength > 0.09)
+					strength = 0.01;
+				strength += 0.01;
+				printf("strength = %f\n", strength);
 				break;
 			case SDLK_t:
 				if (p1.no_of_tiles > 0)
@@ -1436,7 +1441,6 @@ void handle_events(){
 		}
 		if (e.type == SDL_QUIT)
 				quit = 1;
-	}
-	
+	}	
 }
 
